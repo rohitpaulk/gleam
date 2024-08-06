@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Instant};
 
 use gleam_core::{
-    build::{Built, Codegen, Options, ProjectCompiler},
+    build::{Built, Codegen, Options, ProjectCompiler, Telemetry},
     manifest::Manifest,
     paths::ProjectPaths,
     Result,
@@ -19,11 +19,10 @@ pub fn download_dependencies() -> Result<Manifest> {
     crate::dependencies::download(&paths, cli::Reporter::new(), None, UseManifest::Yes)
 }
 
-pub fn main(options: Options, manifest: Manifest) -> Result<Built> {
+pub fn main(options: Options, manifest: Manifest, telemetry: Arc<dyn Telemetry>) -> Result<Built> {
     let paths = crate::find_project_paths()?;
     let perform_codegen = options.codegen;
     let root_config = crate::config::root_config()?;
-    let telemetry = Box::new(cli::Reporter::new());
     let io = fs::ProjectIO::new();
     let start = Instant::now();
     let lock = BuildLock::new_target(
@@ -40,7 +39,7 @@ pub fn main(options: Options, manifest: Manifest) -> Result<Built> {
             root_config,
             options,
             manifest.packages,
-            telemetry,
+            telemetry.clone(),
             Arc::new(ConsoleWarningEmitter),
             ProjectPaths::new(current_dir),
             io,
@@ -49,8 +48,8 @@ pub fn main(options: Options, manifest: Manifest) -> Result<Built> {
     };
 
     match perform_codegen {
-        Codegen::All | Codegen::DepsOnly => cli::print_compiled(start.elapsed()),
-        Codegen::None => cli::print_checked(start.elapsed()),
+        Codegen::All | Codegen::DepsOnly => telemetry.compiled_packages(start),
+        Codegen::None => telemetry.checked_packages(start),
     };
 
     Ok(result)

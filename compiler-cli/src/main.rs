@@ -84,6 +84,7 @@ use gleam_core::{
 };
 use hex::ApiKeyCommand as _;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use camino::Utf8PathBuf;
 
@@ -191,6 +192,10 @@ enum Command {
         /// The module to run
         #[arg(short, long)]
         module: Option<String>,
+
+        /// Don't print progress information
+        #[arg(long)]
+        no_print_progress: bool,
 
         arguments: Vec<String>,
     },
@@ -470,13 +475,21 @@ fn main() {
             arguments,
             runtime,
             module,
-        } => run::command(arguments, target, runtime, module, run::Which::Src),
+            no_print_progress,
+        } => run::command(
+            arguments,
+            target,
+            runtime,
+            module,
+            no_print_progress,
+            run::Which::Src,
+        ),
 
         Command::Test {
             target,
             arguments,
             runtime,
-        } => run::command(arguments, target, runtime, None, run::Which::Test),
+        } => run::command(arguments, target, runtime, None, false, run::Which::Test),
 
         Command::CompilePackage(opts) => compile_package::command(opts),
 
@@ -540,6 +553,7 @@ fn command_check(target: Option<Target>) -> Result<()> {
             target,
         },
         build::download_dependencies()?,
+        Arc::new(cli::Reporter::new()),
     )?;
     Ok(())
 }
@@ -554,6 +568,7 @@ fn command_build(target: Option<Target>, warnings_as_errors: bool) -> Result<()>
             target,
         },
         build::download_dependencies()?,
+        Arc::new(cli::Reporter::new()),
     )?;
     Ok(())
 }

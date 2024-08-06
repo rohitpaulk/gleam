@@ -19,12 +19,20 @@ impl Reporter {
 }
 
 impl Telemetry for Reporter {
-    fn compiling_package(&self, name: &str) {
-        print_compiling(name);
+    fn checked_packages(&self, start: Instant) {
+        print_checked(start.elapsed())
     }
 
     fn checking_package(&self, name: &str) {
         print_checking(name);
+    }
+
+    fn compiled_packages(&self, start: Instant) {
+        print_compiled(start.elapsed())
+    }
+
+    fn compiling_package(&self, name: &str) {
+        print_compiling(name);
     }
 
     fn downloading_package(&self, name: &str) {
@@ -41,6 +49,10 @@ impl Telemetry for Reporter {
 
     fn waiting_for_build_directory_lock(&self) {
         print_waiting_for_build_directory_lock()
+    }
+
+    fn running_module(&self, name: &str) {
+        print_running(&format!("{name}.main"))
     }
 }
 

@@ -1,10 +1,10 @@
-use std::sync::OnceLock;
+use std::{sync::Arc, sync::OnceLock};
 
 use camino::Utf8PathBuf;
 use ecow::EcoString;
 use gleam_core::{
     analyse::TargetSupport,
-    build::{Built, Codegen, Mode, Options, Runtime, Target},
+    build::{Built, Codegen, Mode, NullTelemetry, Options, Runtime, Target, Telemetry},
     config::{DenoFlag, PackageConfig},
     error::Error,
     io::{CommandExecutor, Stdio},
@@ -26,6 +26,7 @@ pub fn command(
     target: Option<Target>,
     runtime: Option<Runtime>,
     module: Option<String>,
+    no_print_progress: bool,
     which: Which,
 ) -> Result<(), Error> {
     let paths = crate::find_project_paths()?;
@@ -78,7 +79,13 @@ pub fn command(
         },
     };
 
-    let built = crate::build::main(options, manifest)?;
+    let telemetry: Arc<dyn Telemetry> = if no_print_progress {
+        Arc::new(NullTelemetry)
+    } else {
+        Arc::new(crate::cli::Reporter::new())
+    };
+
+    let built = crate::build::main(options, manifest, telemetry.clone())?;
 
     // A module can not be run if it does not exist or does not have a public main function.
     let main_function = get_or_suggest_main_function(built, &module, target)?;
@@ -86,7 +93,7 @@ pub fn command(
     // Don't exit on ctrl+c as it is used by child erlang shell
     ctrlc::set_handler(move || {}).expect("Error setting Ctrl-C handler");
 
-    crate::cli::print_running(&format!("{module}.main"));
+    telemetry.running_module(&module);
 
     // Run the command
     let status = match target {
